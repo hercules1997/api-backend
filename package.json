@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Esse é um teste da empresa Facilita Jurídico para desenvolvimento web",
   "type": "commonjs",
-  "main": "src/server.js",
+  "main": "dist/server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "sucrase ./src -d ./dist --transforms imports",
