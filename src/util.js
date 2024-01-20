@@ -1,52 +1,17 @@
-export const calcularCoordenadas = (clientes, localizacaoFixa) => {
-  try {
-    //Distância em relação à localização fixa
-    const distancias = clientes.map((coordenada) =>
-
-      
-      calcularDistancias(
-        localizacaoFixa.latitude,
-        localizacaoFixa.longitude,
-        coordenada.latitude,
-        coordenada.longitude
-      )
-    )
-
-    const rotaComDistancia = {
-      clientes,
-      distancia: distancias[0]
-    }
-
-    return rotaComDistancia
-  } catch (error) {
-    console.error('Erro ao calcular rota otimizada', error)
-    throw error
-  }
+// Função para calcular a distância dos pontos
+export const calcularDistancias = (pontoA, pontoB) => {
+  return Math.sqrt((pontoA.x - pontoB.x) ** 2 + (pontoA.y - pontoB.y) ** 2)
 }
 
-export const calcularDistancias = (
-  latitude1,
-  longitude1,
-  latitude2,
-  longitude2
-) => {
-  // Conversões de graus para radianos
-  const angulo_Latitude1 = (Math.PI * latitude1) / 180
-  const angulo_Latitude2 = (Math.PI * latitude2) / 180
-  const diferencaAngular = longitude1 - longitude2
+//* ----------------------------------------------------------------------------------------------------- //
 
-  const calculo_Rad = (Math.PI * diferencaAngular) / 180
-  let ponto =
-    Math.sin(angulo_Latitude1) * Math.sin(angulo_Latitude2) +
-    Math.cos(angulo_Latitude1) *
-      Math.cos(angulo_Latitude2) *
-      Math.cos(calculo_Rad)
-  ponto = Math.acos(ponto)
-  ponto = (ponto * 180) / Math.PI
-  ponto = ponto * 60 * 1.1515
-  ponto = ponto * 1.609344
+// Função para calcular a distância total de uma rota
+export const calcularDistanciaTotal = (rota) => {
+  let distanciaTotal = 0
+  // Laço para percorrer a rota
+  for (let i = 0; i < rota.length - 1; i++) {
+    distanciaTotal += calcularDistancias(rota[i], rota[i + 1])
+  }
 
-  const result = Number(ponto.toFixed(2))
-
-  return result
+  return distanciaTotal
 }

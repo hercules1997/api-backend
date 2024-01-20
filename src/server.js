@@ -1,8 +1,8 @@
 // Importa o Express.js
-import bodyParser from "body-parser"
-import express from "express"
+import bodyParser from 'body-parser'
+import express from 'express'
 import cors from 'cors'
-import { useRoutes } from "./routes"
+import { useRoutes } from './routes'
 
 // Cria uma instância do aplicativo Express para trabalhar com roteamento
 const app = express()

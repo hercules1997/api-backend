@@ -3,13 +3,15 @@
   "version": "1.0.0",
   "description": "Esse é um teste da empresa Facilita Jurídico para desenvolvimento web",
   "type": "commonjs",
-  "main": "dist/server.js",
+  "main": "src/server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "sucrase ./src -d ./dist --transforms imports",
     "dev": "nodemon"
   },
-  "keywords": ["Desenvolvedor web"],
+  "keywords": [
+    "Desenvolvedor web"
+  ],
   "repository": "",
   "author": {
     "name": "Hércules Chaves Andrade - Desenvolvedor de web",

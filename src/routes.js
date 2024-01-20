@@ -1,105 +1,136 @@
-
-import * as path from 'path'
 import { readFile } from 'fs/promises'
 import { pool_Config } from './database/db.js'
-import { calcularCoordenadas } from './util.js'
-import HttpStatus from 'http-status-codes' 
+import HttpStatus from 'http-status-codes'
+import { calcularDistanciaTotal } from './util.js'
+import { endereco_DDL } from './database/db.js'
 
-const endereco_DDL = path.join('src/ddl.sql')
+//* ----------------------------------------------------------------------------------------------------- //
 
+// Inicia as requisições das rodas e o script do DDL
 export const useRoutes = async (app) => {
   try {
-    const ddl_Script = await readFile(endereco_DDL, 'utf8')
-    // Executa o script DDL ao iniciar o servidor
-    await pool_Config.query(ddl_Script)
-    console.log('Script DDL executado com sucesso!')
+    try {
+      const ddl_Script = await readFile(endereco_DDL, 'utf8')
+      // Executa o script DDL ao iniciar o servidor
+      await pool_Config.query(ddl_Script)
+      console.log('Script DDL executado com sucesso!')
+    } catch (error) {
+      console.error('Erro ao executar o script DDL', error)
+    }
+
+    //* ----------------------------------------------------------------------------------------------------- //
+
+    // Middleware de tratamento de erros
+    app.use((err, req, res, next) => {
+      console.error('Erro:', err)
+      res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ error: 'Erro interno do servidor' })
+    })
+
+    //* ----------------------------------------------------------------------------------------------------- //
+
+    // Busca de todos clientes
+    app.get('/clientes', async (req, res, next) => {
+      try {
+        const result = await pool_Config.query('SELECT * FROM clientes')
+        res.status(HttpStatus.OK).json(result.rows)
+      } catch (error) {
+        console.error('Erro ao buscar clientes', error)
+        next(error)
+      }
+    })
+
+    //* ----------------------------------------------------------------------------------------------------- //
+
+    // Cria novos clientes
+    app.post('/clientes', async (req, res, next) => {
+      const { nome, email, telefone, x, y } = req.body
+      try {
+        const result = await pool_Config.query(
+          'INSERT INTO clientes (nome, email, telefone, x, y) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+          [nome, email, telefone, x, y]
+        )
+        res.status(HttpStatus.CREATED).json(result.rows[0])
+      } catch (error) {
+        console.error('Erro ao cadastrar cliente', error)
+        next(error)
+      }
+    })
+
+    //* ----------------------------------------------------------------------------------------------------- //
+
+    // Rota para calcular a rota mais proxima
+    app.get('/calcular-rota', async (_, res, next) => {
+      try {
+        const result = await pool_Config.query('SELECT * FROM clientes')
+        const clientes = result.rows
+
+        const empresa = {
+          id: 0,
+          nome: 'Facilita Clean',
+          email: 'facilita@gmail.com',
+          telefone: 123456789,
+          x: 0,
+          y: 0
+        }
+
+        // localização da empresa
+        clientes.push(empresa)
+
+        // Calcula a distância entre a empresa e cada cliente
+        const distancias = clientes.map((cliente) => ({
+          cliente,
+          distancia: calcularDistanciaTotal([{ x: 0, y: 0 }, cliente])
+        }))
+
+        // Ordena os clientes pela distância em ordem crescente (do menor para o maior)
+        distancias.sort((a, b) => a.distancia - b.distancia)
+
+        // Obtém a rota otimizada (cliente mais próximo primeiro)
+        const rota_Ordenada_Mais_Proxima = distancias.map(
+          (item) => item.cliente
+        )
+
+        res.json({ rota_Ordenada_Mais_Proxima })
+      } catch (error) {
+        console.error('Erro ao calcular rota otimizada', error)
+        res.status(500).json({ error: 'Erro ao calcular rota otimizada' })
+      }
+    })
+
+    //* ----------------------------------------------------------------------------------------------------- //
+
+    // Rota para filtrar clientes com base em parâmetros de consulta
+    app.get('/filtrar-clientes', async (req, res, next) => {
+      try {
+        const { nome, email, telefone } = req.query
+        let queryString = 'SELECT * FROM clientes WHERE 1 = 1'
+        const queryParams = []
+
+        if (nome) {
+          queryString += ' AND nome ILIKE $1'
+          queryParams.push(`%${nome}%`)
+        }
+
+        if (email) {
+          queryString += ' AND email ILIKE $2'
+          queryParams.push(`%${email}%`)
+        }
+
+        if (telefone) {
+          queryString += ' AND telefone ILIKE $3'
+          queryParams.push(`%${telefone}%`)
+        }
+
+        const result = await pool_Config.query(queryString, queryParams)
+        res.json(result.rows)
+      } catch (error) {
+        console.error('Erro ao filtrar clientes', error)
+        next(error)
+      }
+    })
   } catch (error) {
-    console.error('Erro ao executar o script DDL', error)
+    console.error('Erro ao chamar rota, tente novamente', error)
   }
-
-  // Localização fixa 
-  const localizacaoFixa = {
-    latitude: -23.504651623200193,
-    longitude: -46.802845568928035
-  }
-
-  // Middleware de tratamento de erros
-  app.use((err, req, res, next) => {
-    console.error('Erro:', err)
-    res
-      .status(HttpStatus.INTERNAL_SERVER_ERROR)
-      .json({ error: 'O Erro está sendo interno do servidor' })
-  })
-
-  // Busca de todos clientes
-  app.get('/clientes', async (req, res, next) => {
-    try {
-      const result = await pool_Config.query('SELECT * FROM clientes')
-      res.status(HttpStatus.OK).json(result.rows)
-    } catch (error) {
-      console.error('Erro ao buscar clientes', error)
-      next(error)
-    }
-  })
-
-  // Cria novo cliente
-  app.post('/clientes', async (req, res, next) => {
-    const { nome, email, telefone, latitude, longitude } = req.body
-    try {
-      const result = await pool_Config.query(
-        'INSERT INTO clientes (nome, email, telefone, latitude, longitude) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-        [nome, email, telefone, latitude, longitude]
-      )
-      res.status(HttpStatus.CREATED).json(result.rows[0])
-    } catch (error) {
-      console.error('Erro ao cadastrar cliente', error)
-      next(error)
-    }
-  })
-
-  app.get('/calcular-distancia', async (_, res, next) => {
-    try {
-      const result = await pool_Config.query('SELECT * FROM clientes')
-      const clientes = result.rows
-
-      // Chama a função para calcular a distancia
-      const distancia_calaculada = calcularCoordenadas(clientes, localizacaoFixa)
-
-      // Retorna a distancia calculada como resposta
-      res.status(HttpStatus.OK).json(distancia_calaculada)
-    } catch (error) {
-      console.error('Erro ao calcular rota', error)
-      next(error)
-    }
-  })
-
-  // Rota para filtrar clientes com base em parâmetros de consulta
-  app.get('/filtrar-clientes', async (req, res, next) => {
-    try {
-      const { nome, email, telefone } = req.query
-      let queryString = 'SELECT * FROM clientes WHERE 1 = 1'
-      const queryParams = []
-
-      if (nome) {
-        queryString += ' AND nome ILIKE $1'
-        queryParams.push(`%${nome}%`)
-      }
-
-      if (email) {
-        queryString += ' AND email ILIKE $2'
-        queryParams.push(`%${email}%`)
-      }
-
-      if (telefone) {
-        queryString += ' AND telefone ILIKE $3'
-        queryParams.push(`%${telefone}%`)
-      }
-
-      const result = await pool_Config.query(queryString, queryParams)
-      res.json(result.rows)
-    } catch (error) {
-      console.error('Erro ao filtrar clientes', error)
-      next(error)
-    }
-  })
 }
