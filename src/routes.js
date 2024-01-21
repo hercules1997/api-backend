@@ -1,7 +1,7 @@
 import { readFile } from 'fs/promises'
 import { pool_Config } from './database/db.js'
 import HttpStatus from 'http-status-codes'
-import { calcularDistanciaTotal } from './util.js'
+import { encontrarRotaMenorDistancia } from './util.js'
 import { endereco_DDL } from './database/db.js'
 
 //* ----------------------------------------------------------------------------------------------------- //
@@ -60,6 +60,12 @@ export const useRoutes = async (app) => {
 
     //* ----------------------------------------------------------------------------------------------------- //
 
+    // app.post('/rotas', async (req, res, next) => {
+    //      //TODO REALIZAR A INSERSÇÃO DAS ROTAS PARA A TABELA DE ROTAS
+    // })
+
+    //* ----------------------------------------------------------------------------------------------------- //
+
     // Rota para calcular a rota mais proxima
     app.get('/calcular-rota', async (_, res, next) => {
       try {
@@ -75,31 +81,45 @@ export const useRoutes = async (app) => {
           y: 0
         }
 
-        // localização da empresa
+        // Adiciona a empresa à lista de clientes
         clientes.push(empresa)
 
         // Calcula a distância entre a empresa e cada cliente
-        const distancias = clientes.map((cliente) => ({
-          cliente,
-          distancia: calcularDistanciaTotal([{ x: 0, y: 0 }, cliente])
-        }))
+        const distancias = clientes.map((i) => [i.x, i.y])
 
-        // Ordena os clientes pela distância em ordem crescente (do menor para o maior)
-        distancias.sort((a, b) => a.distancia - b.distancia)
+        const resu = encontrarRotaMenorDistancia(distancias)
 
-        // Obtém a rota otimizada (cliente mais próximo primeiro)
-        const rota_Ordenada_Mais_Proxima = distancias.map(
-          (item) => item.cliente
-        )
+        // Calcula a distância entre a empresa e cada cliente
+        const rot = clientes.map((cliente) => {
+          const pontoMaisProximo = resu.rota.find(
+            (ponto) => ponto[0] === cliente.x && ponto[1] === cliente.y
+          )
 
-        res.json({ rota_Ordenada_Mais_Proxima })
+          return {
+            cliente,
+            ponto_proximo: pontoMaisProximo
+          }
+        })
+
+        // Ordena a rota pelo menor caminho
+        const rotOrdenadaMaisProxima = rot
+          .sort((a, b) => {
+            const pontoA = a.ponto_proximo
+              ? resu.rota.indexOf(a.ponto_proximo)
+              : -1
+            const pontoB = b.ponto_proximo
+              ? resu.rota.indexOf(b.ponto_proximo)
+              : -1
+            return pontoA - pontoB
+          })
+          .map((item) => item.cliente)
+
+        res.json({ rotOrdenadaMaisProxima })
       } catch (error) {
         console.error('Erro ao calcular rota otimizada', error)
         res.status(500).json({ error: 'Erro ao calcular rota otimizada' })
       }
-    })
-
-    //* ----------------------------------------------------------------------------------------------------- //
+    }) //* ----------------------------------------------------------------------------------------------------- //
 
     // Rota para filtrar clientes com base em parâmetros de consulta
     app.get('/filtrar-clientes', async (req, res, next) => {
