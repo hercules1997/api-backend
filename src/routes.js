@@ -61,15 +61,73 @@ export const useRoutes = async (app) => {
     //* ----------------------------------------------------------------------------------------------------- //
 
     // app.post('/rotas', async (req, res, next) => {
-    //      //TODO REALIZAR A INSERSÇÃO DAS ROTAS PARA A TABELA DE ROTAS
-    // })
+    app.get('/clientes/:id', async (req, res, next) => {
+      const clienteId = req.params.id
+
+      try {
+        const result = await pool_Config.query(
+          'SELECT * FROM clientes WHERE id = $1',
+          [clienteId]
+        )
+
+        if (result.rows.length > 0) {
+          // Inserir cliente na tabela rotas
+          const cliente = result.rows[0]
+          const insertResult = await pool_Config.query(
+            'INSERT INTO rotas (cliente_id, nome, email, telefone, x, y) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [
+              cliente.id,
+              cliente.nome,
+              cliente.email,
+              cliente.telefone,
+              cliente.x,
+              cliente.y
+            ]
+          )
+
+          res.status(HttpStatus.OK).json(insertResult.rows[0])
+        } else {
+          res
+            .status(HttpStatus.NOT_FOUND)
+            .json({ mensagem: 'Cliente não encontrado' })
+        }
+      } catch (error) {
+        console.error('Erro ao buscar e inserir cliente na tabela rotas', error)
+        next(error)
+      }
+    })
 
     //* ----------------------------------------------------------------------------------------------------- //
 
+    // Busca de todos clientes
+    app.get('/rotas', async (_, res, next) => {
+      try {
+        const result = await pool_Config.query('SELECT * FROM rotas')
+        res.status(HttpStatus.OK).json(result.rows)
+      } catch (error) {
+        console.error('Erro ao buscar rota', error)
+        next(error)
+      }
+    })
+
+    //* ----------------------------------------------------------------------------------------------------- //
+
+    // Busca de todos clientes
+    app.get('/drop-routes', async (_, res, next) => {
+      try {
+        const result = await pool_Config.query('DELETE FROM rotas')
+        res.status(HttpStatus.OK).json(result.rows)
+      } catch (error) {
+        console.error('Erro ao excluir registros da tabela rotas', error)
+        next(error)
+      }
+    })
+
+    //* ----------------------------------------------------------------------------------------------------- //
     // Rota para calcular a rota mais proxima
     app.get('/calcular-rota', async (_, res, next) => {
       try {
-        const result = await pool_Config.query('SELECT * FROM clientes')
+        const result = await pool_Config.query('SELECT * FROM rotas')
         const clientes = result.rows
 
         const empresa = {
@@ -106,14 +164,13 @@ export const useRoutes = async (app) => {
           .sort((a, b) => {
             const pontoA = a.ponto_proximo
               ? resu.rota.indexOf(a.ponto_proximo)
-              : -1
+              : resu.rota.length // Se não encontrado, considera o final
             const pontoB = b.ponto_proximo
               ? resu.rota.indexOf(b.ponto_proximo)
-              : -1
-            return pontoA - pontoB
+              : resu.rota.length // Se não encontrado, considera o final
+            return pontoA - pontoB // Ordena do menor para o maior
           })
           .map((item) => item.cliente)
-
         res.json({ rotOrdenadaMaisProxima })
       } catch (error) {
         console.error('Erro ao calcular rota otimizada', error)

@@ -23,6 +23,15 @@ BEGIN
       y FLOAT
     );
   END IF;
+
+  IF NOT EXISTS
+  ( SELECT 1
+   FROM information_schema.columns
+   WHERE table_name = 'rotas'
+     AND column_name = 'cliente_id' ) THEN
+ALTER TABLE rotas ADD COLUMN cliente_id INTEGER;
+
+END IF;
 END $$;
 
 -- DROP TABLE clientes;
